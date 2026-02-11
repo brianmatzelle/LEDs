@@ -1,0 +1,15 @@
+[project]
+name = "ledmatrix"
+version = "0.1.0"
+description = "Development toolkit for 64x64 HUB75 LED matrix via Adafruit MatrixPortal S3"
+requires-python = ">=3.10"
+dependencies = [
+    "pygame-ce>=2.5.0",
+    "pyserial>=3.5",
+]
+
+[tool.setuptools]
+packages = ["ledmatrix"]
+
+[project.optional-dependencies]
+dev = ["pillow"]
