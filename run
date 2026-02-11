@@ -8,10 +8,12 @@ MATRIX_IP="${MATRIX_IP:-192.168.1.184}"
 
 # App catalog: name|file|description
 APPS=(
+    "G Train|apps/gtrain.py|Live Greenpoint Ave arrivals"
     "Circle|apps/circle.py|Pulsing color-cycling circle"
     "Rainbow|apps/rainbow.py|Scrolling diagonal rainbow wave"
     "Plasma|apps/plasma.py|Classic demoscene plasma effect"
     "Hello|apps/hello.py|Bouncing text with color cycling"
+    "Caesar|apps/caesar.py|Spinning ASCII 3D Caesar"
 )
 
 show_banner() {

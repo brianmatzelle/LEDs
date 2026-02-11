@@ -1,4 +1,6 @@
-# LED Matrix Development Environment
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Hardware
 
@@ -17,53 +19,52 @@ Desktop (Python)                    Board (CircuitPython)
 ┌─────────────────┐    UDP/WiFi    ┌─────────────────────┐
 │ App (apps/*.py)  │──────────────▶│ receiver.py (code.py)│
 │ ├─ Canvas API    │  port 7777    │ ├─ WiFi listener     │
-│ ├─ Simulator     │  RGB888 rows  │ ├─ RGB565 convert    │
+│ ├─ Simulator     │  RGB565 rows  │ ├─ arrayblit display │
 │ └─ Sender        │               │ └─ HUB75 via rgbmatrix│
 └─────────────────┘                └─────────────────────┘
 ```
 
 ### Desktop Side (`ledmatrix/` package)
-- **canvas.py**: 64x64 RGB pixel buffer with drawing primitives (set, line, rect, circle, text, hsv)
+- **canvas.py**: 64x64 RGB888 pixel buffer with drawing primitives (set, line, rect, circle, text, hsv). Buffer is a flat `bytearray` indexed as `(y * width + x) * 3`.
 - **simulator.py**: Pygame window showing 10x upscaled preview of the canvas
-- **sender.py**: UDP streaming to the board (sends one packet per row + frame-done signal)
-- **run.py**: Main loop tying canvas, simulator, and sender together
+- **sender.py**: Converts RGB888→RGB565 and streams via UDP to the board (one packet per row + frame-done signal). Enabled only when `MATRIX_IP` env var is set.
+- **run.py**: Main loop tying canvas, simulator, and sender together. **Canvas is NOT auto-cleared between frames**—the app's `render()` function controls clearing.
 - **deploy.py**: Copies board code to CIRCUITPY USB drive
 
 ### Board Side (`board/`)
-- **receiver.py**: UDP pixel receiver → HUB75 display via `rgbmatrix` + `displayio`
-- Deployed to board as `code.py` via `make deploy`
+- **receiver.py**: UDP listener → `memoryview` copy + `bitmaptools.arrayblit()` → HUB75 display. Zero per-pixel Python work. Deployed to board as `code.py` via `make deploy`.
 
 ### Apps (`apps/`)
 - Python scripts that import `ledmatrix` and define a `render(canvas, t, frame)` function
 - Run on the desktop, preview in simulator, optionally stream to board over WiFi
 
-## Quick Reference
+## Commands
 
-### Common Commands
 ```bash
 source .venv/bin/activate          # Activate Python venv (required first)
+make setup                         # Create .venv and install ledmatrix (editable)
 make sim app=apps/rainbow.py       # Run app in simulator only
 make stream app=apps/rainbow.py    # Run with simulator + stream to board
-make deploy                        # Deploy receiver to board
+make list                          # List available apps
+make deploy                        # Deploy receiver to board as code.py
+make deploy-file file=board/foo.py # Deploy specific file as code.py
 make serial                        # Open serial console to board
 make backup                        # Backup current CIRCUITPY contents
 make mount                         # Mount CIRCUITPY USB drive
+./run                              # Interactive menu to pick and run apps
 ```
+
+`MATRIX_IP` defaults to `192.168.1.184` in the Makefile. Override with env var. When `MATRIX_IP` is unset (i.e., `make sim`), the sender silently disables itself.
 
 ### Streaming to the Board
 ```bash
-# 1. Deploy receiver to board (one-time, or after firmware changes)
-make deploy
-
-# 2. Check serial output for the board's IP address
-make serial
-# Output: "Connected! IP: 192.168.x.x"
-
-# 3. Run an app with streaming enabled
+make deploy                                    # One-time: deploy receiver
+make serial                                    # Check board IP address
 MATRIX_IP=192.168.x.x make stream app=apps/rainbow.py
 ```
 
-### Writing a New App
+## Writing a New App
+
 ```python
 # apps/myapp.py
 from ledmatrix import Canvas, run
@@ -71,122 +72,57 @@ from ledmatrix import Canvas, run
 def render(canvas: Canvas, t: float, frame: int) -> None:
     """Called every frame. t = elapsed seconds, frame = frame count."""
     canvas.clear()
-    canvas.set(10, 10, (255, 0, 0))                    # Red pixel
-    canvas.rect(5, 5, 20, 10, (0, 0, 255))             # Blue rectangle
-    canvas.line(0, 0, 63, 63, (255, 255, 0))           # Yellow diagonal
-    canvas.circle(32, 32, 15, (0, 255, 0))             # Green circle outline
-    canvas.circle(32, 32, 8, (255, 0, 255), filled=True)  # Magenta filled circle
-    canvas.text(2, 58, "HI", canvas.hsv(t * 50 % 360)) # Color-cycling text
-    canvas.text(20, 58, str(frame), (128, 128, 128))    # Frame counter
+    canvas.set(10, 10, (255, 0, 0))
+    canvas.circle(32, 32, 15, (0, 255, 0))
+    canvas.circle(32, 32, 8, (255, 0, 255), filled=True)
+    canvas.text(2, 58, "HI", canvas.hsv(t * 50 % 360))
 
 if __name__ == "__main__":
     run(render, fps=30, title="My App")
 ```
 
 ### Canvas API
+
 ```python
 canvas.clear(color=(0,0,0))        # Fill with color (default black)
-canvas.set(x, y, (r, g, b))       # Set pixel
-canvas.get(x, y) -> (r, g, b)     # Get pixel
+canvas.set(x, y, (r, g, b))       # Set pixel (bounds-checked)
+canvas.get(x, y) -> (r, g, b)     # Get pixel (returns (0,0,0) out-of-bounds)
 canvas.fill((r, g, b))            # Fill entire canvas
 canvas.rect(x, y, w, h, color, filled=True)  # Rectangle
 canvas.line(x0, y0, x1, y1, color)           # Bresenham line
-canvas.circle(cx, cy, r, color, filled=False) # Circle
-canvas.text(x, y, "TEXT", color)   # 3x5 pixel font (uppercase + digits)
+canvas.circle(cx, cy, r, color, filled=False) # Midpoint circle
+canvas.text(x, y, "TEXT", color)   # 3x5 pixel font (uppercase + digits + punctuation)
 Canvas.hsv(hue, sat, val)         # HSV to RGB (hue 0-360, s/v 0-1)
 Canvas.hex(0xFF0000)              # Hex int to RGB tuple
 Canvas.rgb(r, g, b)               # Clamped RGB tuple
-canvas.get_buffer()                # Raw bytes (row-major RGB888)
+canvas.get_buffer()                # Raw bytes (row-major RGB888, 12288 bytes)
 canvas.get_row(y)                  # Raw bytes for one row (192 bytes)
 ```
 
-## Board Details
+## UDP Streaming Protocol
 
-### USB Detection
-```bash
-lsusb | grep Adafruit    # Should show: 239a:8126 Adafruit MatrixPortal S3
-ls /dev/ttyACM0           # Serial port
-udisksctl mount -b /dev/sdc1  # Mount CIRCUITPY (device may vary, check lsblk)
-```
+- Port: 7777
+- Each packet: 2-byte row number (big-endian uint16) + 128 bytes RGB565 data (64 pixels x 2 bytes, little-endian)
+- Frame done signal: row number = 0xFFFF (2 bytes, no pixel data)
+- 64 row packets + 1 frame-done = 65 packets per frame, paced at 1ms between rows
+- Sender does RGB888→RGB565 conversion: `((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)`
+
+## Board Details
 
 ### CIRCUITPY Drive
 - Mounted at `/run/media/cowboy/CIRCUITPY`
 - `code.py` is the main entry point (auto-reloads on save)
-- `settings.toml` contains WiFi credentials and matrix dimensions
-- `lib/` contains CircuitPython library dependencies
+- `settings.toml` contains WiFi credentials (`CIRCUITPY_WIFI_SSID`, `CIRCUITPY_WIFI_PASSWORD`) and matrix dimensions (`MATRIX_WIDTH`, `MATRIX_HEIGHT`)
+- Only built-in CircuitPython modules needed for the receiver (`wifi`, `socketpool`, `rgbmatrix`, `displayio`, `framebufferio`, `bitmaptools`)
 
-### settings.toml (on board)
-```toml
-CIRCUITPY_WIFI_SSID = "your-network"
-CIRCUITPY_WIFI_PASSWORD = "your-password"
-MATRIX_WIDTH = 64
-MATRIX_HEIGHT = 64
-```
-
-### CircuitPython Libraries Required (in CIRCUITPY/lib/)
-For the UDP receiver, only built-in modules are needed (`wifi`, `socketpool`, `rgbmatrix`, `displayio`, `framebufferio`). No additional libraries required.
-
-For the existing Mets app and other standalone apps, the following are installed:
-`adafruit_matrixportal`, `adafruit_display_text`, `adafruit_bitmap_font`, `adafruit_bus_device`, `adafruit_io`, `adafruit_portalbase`, `adafruit_requests`, `neopixel`
-
-### UDP Streaming Protocol
-- Port: 7777
-- Each packet: 2-byte row number (big-endian uint16) + 192 bytes RGB888 data (64 pixels x 3 bytes)
-- Frame done signal: row number = 0xFFFF (2 bytes, no pixel data)
-- 64 row packets + 1 frame-done = 65 packets per frame
-- Board converts RGB888 → RGB565 and writes to `displayio.Bitmap`
-
-### Matrix Pin Configuration (MatrixPortal S3)
-```
-RGB:     MTX_R1, MTX_G1, MTX_B1, MTX_R2, MTX_G2, MTX_B2
-Address: MTX_ADDRA, MTX_ADDRB, MTX_ADDRC, MTX_ADDRD, MTX_ADDRE
-Clock:   MTX_CLK
-Latch:   MTX_LAT
-OE:      MTX_OE
-```
-
-## File Structure
-```
-led-matrix/
-├── CLAUDE.md           # This file
-├── Makefile            # make sim, stream, deploy, serial, backup
-├── pyproject.toml      # Python project config
-├── .venv/              # Python virtual environment
-├── ledmatrix/          # Desktop Python package
-│   ├── __init__.py     # Exports Canvas and run
-│   ├── canvas.py       # 64x64 pixel buffer + drawing primitives
-│   ├── simulator.py    # Pygame preview window (10x upscale)
-│   ├── sender.py       # UDP pixel streaming to board
-│   ├── run.py          # Main render loop
-│   └── deploy.py       # Deploy to CIRCUITPY
-├── board/              # CircuitPython code for the MatrixPortal S3
-│   ├── receiver.py     # UDP receiver → HUB75 display (deployed as code.py)
-│   └── backup/         # Backup of original CIRCUITPY contents
-├── apps/               # Demo apps (run on desktop)
-│   ├── rainbow.py      # Scrolling rainbow wave
-│   ├── hello.py        # Bouncing text
-│   └── plasma.py       # Classic plasma effect
-└── scripts/            # Utility scripts
-```
+### Display Config
+- `bit_depth=4` in rgbmatrix (fewer colors but stable on ESP32-S3)
+- Bitmap uses 65536-color RGB565 colorspace
+- `auto_refresh=False` — display refreshes only on frame-done signal
 
 ## Troubleshooting
 
-### No /dev/ttyACM0
-- Check `lsusb` for the Adafruit device
-- Run `lsmod | grep cdc_acm` -- if empty, the kernel module isn't loaded
-- May need reboot if kernel was updated (modules must match running kernel)
-
-### CIRCUITPY not mounting
-- Double-tap Reset button to enter UF2 bootloader (MATRXS3BOOT drive appears)
-- If already in CircuitPython, use `udisksctl mount -b /dev/sdX1` (check `lsblk` for device)
-
-### Board not receiving UDP packets
-- Check board serial output for IP address (`make serial`)
-- Verify board and desktop are on the same WiFi network
-- Check firewall: `sudo iptables -L` (UDP port 7777 must be open outbound)
-- Test connectivity: `ping <board_ip>`
-
-### Display shows wrong colors / garbled
-- Check `bit_depth` in receiver.py (4 is the default, lower = fewer colors but more stable)
-- Verify Address E jumper is soldered for 64x64 panels
-- Check `MATRIX_WIDTH` and `MATRIX_HEIGHT` in settings.toml
+- **No /dev/ttyACM0**: Check `lsusb` for Adafruit device. May need reboot if kernel was updated (modules must match running kernel).
+- **CIRCUITPY not mounting**: Double-tap Reset for UF2 bootloader. Otherwise `udisksctl mount -b /dev/sdX1` (check `lsblk`).
+- **Board not receiving packets**: Check serial for IP (`make serial`). Verify same WiFi network. Check firewall on UDP 7777.
+- **Wrong colors / garbled**: Check `bit_depth` in receiver.py. Verify Address E jumper soldered. Check `MATRIX_WIDTH`/`MATRIX_HEIGHT` in settings.toml.

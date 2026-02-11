@@ -6,6 +6,7 @@ requires-python = ">=3.10"
 dependencies = [
     "pygame-ce>=2.5.0",
     "pyserial>=3.5",
+    "nyct-gtfs>=0.0.4",
 ]
 
 [tool.setuptools]
