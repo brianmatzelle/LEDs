@@ -4,8 +4,9 @@ PYTHON := $(VENV)/bin/python
 CIRCUITPY := /run/media/cowboy/CIRCUITPY
 SERIAL_PORT := /dev/ttyACM0
 BAUD := 115200
+MATRIX_IP ?= 192.168.1.184
 
-.PHONY: help setup sim stream deploy deploy-file serial backup mount
+.PHONY: help setup sim stream deploy deploy-file serial backup mount list
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -13,15 +14,19 @@ help: ## Show this help
 
 setup: ## Install Python venv and dependencies
 	python3 -m venv $(VENV)
-	$(VENV)/bin/pip install pygame-ce pyserial
+	$(VENV)/bin/pip install -e .
 	@echo ""
-	@echo "Setup complete. Activate with: source .venv/bin/activate"
+	@echo "Setup complete."
 
-sim: ## Run an app in the simulator only (make sim app=apps/rainbow.py)
+sim: ## Simulator only (make sim app=apps/circle.py)
 	$(PYTHON) $(app)
 
-stream: ## Run an app with simulator + board streaming (make stream app=apps/rainbow.py)
-	$(PYTHON) $(app)
+stream: ## Simulator + stream to board (make stream app=apps/circle.py)
+	MATRIX_IP=$(MATRIX_IP) $(PYTHON) $(app)
+
+list: ## List available apps
+	@echo "Available apps:"
+	@ls -1 apps/*.py | sed 's/^/  /'
 
 deploy: ## Deploy UDP receiver to board as code.py
 	$(PYTHON) -m ledmatrix.deploy receiver

@@ -1,0 +1,112 @@
+#!/bin/bash
+# LED Matrix Demo Store
+# Browse and run apps on your 64x64 LED matrix
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+PYTHON="$DIR/.venv/bin/python"
+MATRIX_IP="${MATRIX_IP:-192.168.1.184}"
+
+# App catalog: name|file|description
+APPS=(
+    "Circle|apps/circle.py|Pulsing color-cycling circle"
+    "Rainbow|apps/rainbow.py|Scrolling diagonal rainbow wave"
+    "Plasma|apps/plasma.py|Classic demoscene plasma effect"
+    "Hello|apps/hello.py|Bouncing text with color cycling"
+)
+
+show_banner() {
+    clear
+    echo ""
+    echo "  ╔══════════════════════════════════════╗"
+    echo "  ║     LED MATRIX DEMO STORE  64x64     ║"
+    echo "  ╠══════════════════════════════════════╣"
+    echo "  ║  Browse demos. Pick one. Enjoy.      ║"
+    echo "  ╚══════════════════════════════════════╝"
+    echo ""
+    echo "  Board IP: $MATRIX_IP"
+    echo ""
+}
+
+show_menu() {
+    echo "  ┌──────────────────────────────────────┐"
+    printf "  │  %-36s │\n" "DEMOS"
+    echo "  ├──────────────────────────────────────┤"
+    local i=1
+    for app in "${APPS[@]}"; do
+        IFS='|' read -r name file desc <<< "$app"
+        printf "  │  %d) %-10s %-23s │\n" "$i" "$name" "$desc"
+        ((i++))
+    done
+    echo "  ├──────────────────────────────────────┤"
+    printf "  │  %-36s │\n" "s) Simulator only (no board)"
+    printf "  │  %-36s │\n" "q) Quit"
+    echo "  └──────────────────────────────────────┘"
+    echo ""
+}
+
+run_app() {
+    local file="$1"
+    local name="$2"
+    local mode="$3"
+
+    echo ""
+    if [[ "$mode" == "sim" ]]; then
+        echo "  Starting $name (simulator only)..."
+        echo "  Close the window or press Ctrl+C to stop."
+        echo ""
+        "$PYTHON" "$DIR/$file" 2>&1
+    else
+        echo "  Streaming $name to board..."
+        echo "  Close the window or press Ctrl+C to stop."
+        echo ""
+        MATRIX_IP="$MATRIX_IP" "$PYTHON" "$DIR/$file" 2>&1
+    fi
+}
+
+# Main loop
+SIM_MODE=""
+
+while true; do
+    show_banner
+    if [[ -n "$SIM_MODE" ]]; then
+        echo "  Mode: SIMULATOR ONLY"
+        echo ""
+    fi
+    show_menu
+
+    read -rp "  Pick a demo: " choice
+
+    case "$choice" in
+        s|S)
+            if [[ -n "$SIM_MODE" ]]; then
+                SIM_MODE=""
+                echo "  Switched to STREAM mode (board + simulator)"
+            else
+                SIM_MODE="sim"
+                echo "  Switched to SIMULATOR ONLY mode"
+            fi
+            sleep 1
+            continue
+            ;;
+        q|Q)
+            echo ""
+            echo "  Bye!"
+            echo ""
+            exit 0
+            ;;
+        [1-9])
+            idx=$((choice - 1))
+            if [[ $idx -lt ${#APPS[@]} ]]; then
+                IFS='|' read -r name file desc <<< "${APPS[$idx]}"
+                run_app "$file" "$name" "$SIM_MODE"
+            else
+                echo "  Invalid choice."
+                sleep 1
+            fi
+            ;;
+        *)
+            echo "  Invalid choice."
+            sleep 1
+            ;;
+    esac
+done
