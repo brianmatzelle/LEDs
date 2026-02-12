@@ -50,8 +50,8 @@ matrix = rgbmatrix.RGBMatrix(
     height=MATRIX_HEIGHT,
     bit_depth=4,
     rgb_pins=[
-        board.MTX_R1, board.MTX_G1, board.MTX_B1,
-        board.MTX_R2, board.MTX_G2, board.MTX_B2,
+        board.MTX_B1, board.MTX_G1, board.MTX_R1,
+        board.MTX_B2, board.MTX_G2, board.MTX_R2,
     ],
     addr_pins=[
         board.MTX_ADDRA, board.MTX_ADDRB, board.MTX_ADDRC, board.MTX_ADDRD,
