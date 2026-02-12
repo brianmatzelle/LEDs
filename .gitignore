@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 *.egg-info/
 board/backup/
+apps/.logo_cache/
+apps/.sports_favorites.json

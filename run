@@ -15,6 +15,7 @@ APPS=(
     "Hello|apps/hello.py|Bouncing text with color cycling"
     "Caesar|apps/caesar.py|Spinning ASCII 3D Caesar"
     "Valentine|apps/valentine.py|Pulsing heart love note"
+    "Sports|apps/sports.py|Multi-team sports tracker"
     "Chooser|apps/chooser.py|Cycle demos with board buttons"
 )
 

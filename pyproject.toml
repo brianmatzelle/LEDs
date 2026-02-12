@@ -8,10 +8,11 @@ dependencies = [
     "pyserial>=3.5",
     "nyct-gtfs>=0.0.4",
     "protobuf>=5",
+    "pillow>=10.0.0",
 ]
 
 [tool.setuptools]
 packages = ["ledmatrix"]
 
 [project.optional-dependencies]
-dev = ["pillow"]
+dev = []

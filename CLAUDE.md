@@ -20,23 +20,26 @@ Desktop (Python)                    Board (CircuitPython)
 │ App (apps/*.py)  │──────────────▶│ receiver.py (code.py)│
 │ ├─ Canvas API    │  port 7777    │ ├─ WiFi listener     │
 │ ├─ Simulator     │  RGB565 rows  │ ├─ arrayblit display │
-│ └─ Sender        │               │ └─ HUB75 via rgbmatrix│
-└─────────────────┘                └─────────────────────┘
+│ └─ Sender        │◀──────────────│ ├─ HUB75 via rgbmatrix│
+└─────────────────┘  port 7778     │ └─ Button events     │
+                     button codes  └─────────────────────┘
 ```
 
 ### Desktop Side (`ledmatrix/` package)
 - **canvas.py**: 64x64 RGB888 pixel buffer with drawing primitives (set, line, rect, circle, text, hsv). Buffer is a flat `bytearray` indexed as `(y * width + x) * 3`.
 - **simulator.py**: Pygame window showing 10x upscaled preview of the canvas
-- **sender.py**: Converts RGB888→RGB565 and streams via UDP to the board (one packet per row + frame-done signal). Enabled only when `MATRIX_IP` env var is set.
+- **sender.py**: Converts RGB888→RGB565 via numpy and streams via UDP to the board (one packet per row + frame-done signal). Rows sent in bursts of 4 with 4ms pauses to avoid overflowing the board's 6-packet UDP mailbox. Enabled only when `MATRIX_IP` env var is set.
 - **run.py**: Main loop tying canvas, simulator, and sender together. **Canvas is NOT auto-cleared between frames**—the app's `render()` function controls clearing.
 - **deploy.py**: Copies board code to CIRCUITPY USB drive
 
 ### Board Side (`board/`)
-- **receiver.py**: UDP listener → `memoryview` copy + `bitmaptools.arrayblit()` → HUB75 display. Zero per-pixel Python work. Deployed to board as `code.py` via `make deploy`.
+- **receiver.py**: UDP listener → `memoryview` copy + `bitmaptools.arrayblit()` → HUB75 display. Zero per-pixel Python work. Also polls physical buttons (BUTTON_UP/BUTTON_DOWN) and sends press events back to the desktop on UDP port 7778. Deployed to board as `code.py` via `make deploy`.
 
 ### Apps (`apps/`)
 - Python scripts that import `ledmatrix` and define a `render(canvas, t, frame)` function
 - Run on the desktop, preview in simulator, optionally stream to board over WiFi
+- **chooser.py** is a meta-app: dynamically imports all other apps and lets you cycle through them with board buttons (port 7778) or keyboard arrows
+- Apps can use background threads for async data (e.g., `gtrain.py` polls MTA feed in a daemon thread)
 
 ## Commands
 
@@ -99,13 +102,18 @@ canvas.get_buffer()                # Raw bytes (row-major RGB888, 12288 bytes)
 canvas.get_row(y)                  # Raw bytes for one row (192 bytes)
 ```
 
-## UDP Streaming Protocol
+## UDP Protocol
 
-- Port: 7777
+### Pixel Streaming (port 7777, desktop → board)
 - Each packet: 2-byte row number (big-endian uint16) + 128 bytes RGB565 data (64 pixels x 2 bytes, little-endian)
 - Frame done signal: row number = 0xFFFF (2 bytes, no pixel data)
-- 64 row packets + 1 frame-done = 65 packets per frame, paced at 1ms between rows
-- Sender does RGB888→RGB565 conversion: `((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)`
+- 64 row packets + 1 frame-done = 65 packets per frame, sent in bursts of 4 rows with 4ms inter-burst delay
+- RGB888→RGB565: `((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)`
+
+### Button Events (port 7778, board → desktop)
+- 1-byte packet: `0x01` = UP button, `0x02` = DOWN button
+- Board debounces at 250ms; sends to the last-seen sender IP
+- Desktop listens with a non-blocking UDP socket (see `chooser.py` for example)
 
 ## Board Details
 
