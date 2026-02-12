@@ -29,7 +29,7 @@ def fetch_loop():
     """Background thread: poll MTA feed every REFRESH_SEC seconds."""
     while True:
         try:
-            feed = NYCTFeed("G")
+            feed = NYCTFeed("G", "")  # api_key arg required by library but MTA no longer enforces keys
             now = datetime.now()
             north = []
             south = []
@@ -46,8 +46,8 @@ def fetch_loop():
             arrivals["north"] = sorted(north)[:3]
             arrivals["south"] = sorted(south)[:3]
             arrivals["updated"] = time.monotonic()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[gtrain] fetch error: {e}")
         time.sleep(REFRESH_SEC)
 
 
