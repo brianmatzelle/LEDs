@@ -27,13 +27,13 @@ The canvas only has `set(x, y, color)` -- no image blitting. Pillow handles the 
 
 Logos are cached by `{league}_{abbr}_{size}.png` so they only download once. The pixel lists are also cached in memory so there's no Pillow work after the first load.
 
-22x22 turned out to be the sweet spot -- big enough to be recognizable, small enough to fit two logos side-by-side with room for "VS" between them.
+22x22 turned out to be the sweet spot -- big enough to be recognizable, small enough to fit two logos side-by-side with room for "AT" between them.
 
 ## Display modes
 
 The app has four states based on what ESPN reports:
 
-- **Pre-game**: Away logo / VS / Home logo at the top. Date and time centered below.
+- **Pre-game**: Away logo / AT / Home logo at the top. Date and time centered below.
 - **Live**: Same logo layout but with a pulsing red dot between them. Score lines for each team, period + clock, and a blinking "LIVE" label.
 - **Final**: Logos, "FINAL" (or "FINAL OT" / "FINAL SO"), and the final score.
 - **No game**: Just the team's logo centered with "NO GAME SCHEDULED."

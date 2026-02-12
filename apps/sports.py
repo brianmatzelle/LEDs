@@ -30,11 +30,10 @@ LOGO_SIZE = 22
 ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports"
 
 # --- Layout ---
-LOGO_Y = 2
+LOGO_Y = 1
 AWAY_LOGO_X = 2
 HOME_LOGO_X = 40
-ABBR_Y = 26
-DIVIDER_Y = 31
+ABBR_Y = 25
 
 # --- Fixed colors ---
 WHITE = (80, 80, 80)
@@ -50,8 +49,16 @@ LEAGUES = [
     ("football",   "nfl",   "NFL",  "National Football League"),
     ("baseball",   "mlb",   "MLB",  "Major League Baseball"),
     ("soccer",     "eng.1", "EPL",  "English Premier League"),
+    ("soccer",     "esp.1", "LIGA", "Spanish La Liga"),
+    ("soccer",     "ger.1", "BUND", "German Bundesliga"),
+    ("soccer",     "ita.1", "SA",   "Italian Serie A"),
+    ("soccer",     "fra.1", "L1",   "French Ligue 1"),
     ("soccer",     "usa.1", "MLS",  "Major League Soccer"),
+    ("soccer",     "mex.1", "LIGM", "Mexican Liga MX"),
+    ("soccer",     "uefa.champions", "UCL", "UEFA Champions League"),
     ("basketball", "wnba",  "WNBA", "Women's NBA"),
+    ("football",   "college-football", "NCAF", "NCAA Football"),
+    ("basketball", "mens-college-basketball", "NCAB", "NCAA Basketball"),
 ]
 
 # --- Shared state ---
@@ -377,7 +384,6 @@ def _make_game_data(fav: dict) -> dict:
         "sport": fav["sport"],
         "team_color": _hex_to_led(fav["color"], 0.35),
         "team_accent": _hex_to_led(fav["alt_color"], 0.35),
-        "divider_color": _hex_to_led(fav["color"], 0.10),
         "updated": 0.0,
     }
 
@@ -576,10 +582,6 @@ def _abbr_under_logo(canvas: Canvas, abbr: str, logo_x: int, y: int,
     canvas.text(max(0, x), y, abbr, color)
 
 
-def _draw_divider(canvas: Canvas, y: int, color) -> None:
-    canvas.line(2, y, 61, y, color)
-
-
 def _draw_status_dot(canvas: Canvas, gd: dict, t: float) -> None:
     age = t - gd["updated"] if gd["updated"] else 999
     if gd["state"] == "loading":
@@ -613,26 +615,24 @@ def _draw_no_game(canvas: Canvas, gd: dict, t: float) -> None:
         _draw_logo(canvas, gd["our_logo"], cx, LOGO_Y)
 
     _centered_text(canvas, ABBR_Y, gd["our_name"], gd["team_color"])
-    _draw_divider(canvas, DIVIDER_Y, gd["divider_color"])
-    _centered_text(canvas, 36, "NO GAME", DIM_GRAY)
-    _centered_text(canvas, 43, "SCHEDULED", DIM_GRAY)
+    _centered_text(canvas, 42, "NO GAME", DIM_GRAY)
+    _centered_text(canvas, 49, "SCHEDULED", DIM_GRAY)
 
 
 def _draw_pre_game(canvas: Canvas, gd: dict, t: float) -> None:
     _draw_logo(canvas, gd["away_logo"], AWAY_LOGO_X, LOGO_Y)
     _draw_logo(canvas, gd["home_logo"], HOME_LOGO_X, LOGO_Y)
 
-    _centered_text(canvas, 10, "VS", DIM_GRAY, x_min=24, x_max=39)
+    _centered_text(canvas, 9, "AT", DIM_GRAY, x_min=24, x_max=39)
 
     away = gd["away_abbr"]
     home = gd["home_abbr"]
     _abbr_under_logo(canvas, away, AWAY_LOGO_X, ABBR_Y, _abbr_color(away, gd))
     _abbr_under_logo(canvas, home, HOME_LOGO_X, ABBR_Y, _abbr_color(home, gd))
 
-    _draw_divider(canvas, DIVIDER_Y, gd["divider_color"])
 
-    _centered_text(canvas, 34, gd["game_date"], WHITE)
-    _centered_text(canvas, 41, gd["game_time"], WHITE)
+    _centered_text(canvas, 40, gd["game_date"], WHITE)
+    _centered_text(canvas, 47, gd["game_time"], WHITE)
 
 
 def _draw_live_game(canvas: Canvas, gd: dict, t: float) -> None:
@@ -640,26 +640,25 @@ def _draw_live_game(canvas: Canvas, gd: dict, t: float) -> None:
     _draw_logo(canvas, gd["home_logo"], HOME_LOGO_X, LOGO_Y)
 
     pulse = int(50 + 50 * abs(math.sin(t * 3)))
-    canvas.set(31, 11, (pulse, 5, 5))
-    canvas.set(32, 11, (pulse, 5, 5))
+    canvas.set(31, 10, (pulse, 5, 5))
+    canvas.set(32, 10, (pulse, 5, 5))
 
     away = gd["away_abbr"]
     home = gd["home_abbr"]
     _abbr_under_logo(canvas, away, AWAY_LOGO_X, ABBR_Y, _abbr_color(away, gd))
     _abbr_under_logo(canvas, home, HOME_LOGO_X, ABBR_Y, _abbr_color(home, gd))
 
-    _draw_divider(canvas, DIVIDER_Y, gd["divider_color"])
 
     away_line = f"{away:3} {gd['away_score']:>2}"
     home_line = f"{home:3} {gd['home_score']:>2}"
-    _centered_text(canvas, 34, away_line, _abbr_color(away, gd))
-    _centered_text(canvas, 41, home_line, _abbr_color(home, gd))
+    _centered_text(canvas, 40, away_line, _abbr_color(away, gd))
+    _centered_text(canvas, 47, home_line, _abbr_color(home, gd))
 
     period_clock = f"{gd['period_text']} {gd['clock']}"
-    _centered_text(canvas, 49, period_clock, AMBER)
+    _centered_text(canvas, 53, period_clock, AMBER)
 
     if int(t * 2) % 2:
-        _centered_text(canvas, 57, "LIVE", LIVE_RED)
+        _centered_text(canvas, 59, "LIVE", LIVE_RED)
 
 
 def _draw_final(canvas: Canvas, gd: dict, t: float) -> None:
@@ -671,7 +670,6 @@ def _draw_final(canvas: Canvas, gd: dict, t: float) -> None:
     _abbr_under_logo(canvas, away, AWAY_LOGO_X, ABBR_Y, _abbr_color(away, gd))
     _abbr_under_logo(canvas, home, HOME_LOGO_X, ABBR_Y, _abbr_color(home, gd))
 
-    _draw_divider(canvas, DIVIDER_Y, gd["divider_color"])
 
     detail = gd.get("status_detail", "Final")
     if "OT" in detail:
@@ -680,12 +678,12 @@ def _draw_final(canvas: Canvas, gd: dict, t: float) -> None:
         final_text = "FINAL SO"
     else:
         final_text = "FINAL"
-    _centered_text(canvas, 35, final_text, DIM_WHITE)
+    _centered_text(canvas, 41, final_text, DIM_WHITE)
 
     away_line = f"{away:3} {gd['away_score']:>2}"
     home_line = f"{home:3} {gd['home_score']:>2}"
-    _centered_text(canvas, 42, away_line, _abbr_color(away, gd))
-    _centered_text(canvas, 49, home_line, _abbr_color(home, gd))
+    _centered_text(canvas, 48, away_line, _abbr_color(away, gd))
+    _centered_text(canvas, 55, home_line, _abbr_color(home, gd))
 
 
 def _render_game(canvas: Canvas, gd: dict, t: float) -> None:
