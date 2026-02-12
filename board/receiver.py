@@ -14,6 +14,7 @@
 import array
 import time
 import board
+import digitalio
 import bitmaptools
 import displayio
 import rgbmatrix
@@ -27,6 +28,10 @@ MATRIX_WIDTH = int(getenv("MATRIX_WIDTH", "64"))
 MATRIX_HEIGHT = int(getenv("MATRIX_HEIGHT", "64"))
 UDP_PORT = 7777
 FRAME_DONE = 0xFFFF
+BUTTON_PORT = 7778
+BTN_UP_CODE = 0x01
+BTN_DOWN_CODE = 0x02
+DEBOUNCE_S = 0.25
 
 # --- WiFi ---
 ssid = getenv("CIRCUITPY_WIFI_SSID")
@@ -41,6 +46,15 @@ ip = str(wifi.radio.ipv4_address)
 print(f"Connected! IP: {ip}")
 print(f"Listening for pixel data on UDP port {UDP_PORT}")
 print(f"On your desktop, run: MATRIX_IP={ip} python apps/rainbow.py")
+
+# --- Buttons ---
+btn_up = digitalio.DigitalInOut(board.BUTTON_UP)
+btn_up.direction = digitalio.Direction.INPUT
+btn_up.pull = digitalio.Pull.UP
+
+btn_down = digitalio.DigitalInOut(board.BUTTON_DOWN)
+btn_down.direction = digitalio.Direction.INPUT
+btn_down.pull = digitalio.Pull.UP
 
 # --- Display setup ---
 displayio.release_displays()
@@ -100,10 +114,16 @@ recv_mv = memoryview(recv_buf)
 
 frame_count = 0
 last_fps_time = time.monotonic()
+sender_addr = None
+btn_up_prev = False
+btn_down_prev = False
+last_btn_time = 0.0
+btn_packet = bytearray(1)
 
 # --- Main receive loop ---
 while True:
     nbytes, addr = sock.recvfrom_into(recv_buf)
+    sender_addr = addr[0]
 
     if nbytes < HEADER_SIZE:
         continue
@@ -129,3 +149,27 @@ while True:
 
     # Blit entire row in one C-level call
     bitmaptools.arrayblit(bitmap, row_buf, x1=0, y1=row_num, x2=MATRIX_WIDTH, y2=row_num + 1)
+
+    # --- Button polling ---
+    now = time.monotonic()
+    up_pressed = not btn_up.value
+    down_pressed = not btn_down.value
+
+    if up_pressed and not btn_up_prev and (now - last_btn_time) > DEBOUNCE_S:
+        btn_packet[0] = BTN_UP_CODE
+        try:
+            sock.sendto(btn_packet, (sender_addr, BUTTON_PORT))
+        except Exception:
+            pass
+        last_btn_time = now
+
+    if down_pressed and not btn_down_prev and (now - last_btn_time) > DEBOUNCE_S:
+        btn_packet[0] = BTN_DOWN_CODE
+        try:
+            sock.sendto(btn_packet, (sender_addr, BUTTON_PORT))
+        except Exception:
+            pass
+        last_btn_time = now
+
+    btn_up_prev = up_pressed
+    btn_down_prev = down_pressed
