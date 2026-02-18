@@ -5,3 +5,4 @@ __pycache__/
 board/backup/
 apps/.logo_cache/
 apps/.sports_favorites.json
+.env

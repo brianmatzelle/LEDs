@@ -40,6 +40,12 @@ Desktop (Python)                    Board (CircuitPython)
 - Run on the desktop, preview in simulator, optionally stream to board over WiFi
 - **chooser.py** is a meta-app: dynamically imports all other apps and lets you cycle through them with board buttons (port 7778) or keyboard arrows
 - Apps can use background threads for async data (e.g., `gtrain.py` polls MTA feed in a daemon thread)
+- **garvis.py** is a non-standard app — it manages its own Canvas/Simulator/Sender loop (does NOT use `ledmatrix.run()`). It runs a WebSocket client in a background asyncio thread, captures mic audio, plays TTS audio, and renders a face + captions.
+
+### Garvis Voice Pipeline (`server/` + `apps/garvis.py`)
+A voice assistant system with two components:
+- **server/garvis_server.py**: FastAPI WebSocket server (`/ws/voice`). Pipeline: Deepgram STT → LLM (OpenClaw or Claude) → ElevenLabs TTS. Streams audio back to client as MP3 chunks. Has assistant mode (wake word "garvis") and always-respond mode.
+- **apps/garvis.py**: LED matrix client that connects to the server, captures mic via sounddevice, decodes TTS audio via ffmpeg, renders animated face (eyes/mouth) + word-wrapped captions.
 
 ## Commands
 
@@ -54,7 +60,7 @@ make deploy-file file=board/foo.py # Deploy specific file as code.py
 make serial                        # Open serial console to board
 make backup                        # Backup current CIRCUITPY contents
 make mount                         # Mount CIRCUITPY USB drive
-./run                              # Interactive menu to pick and run apps
+./run                              # Interactive TUI menu to pick and run apps
 ```
 
 `MATRIX_IP` defaults to `192.168.1.184` in the Makefile. Override with env var. When `MATRIX_IP` is unset (i.e., `make sim`), the sender silently disables itself.
@@ -64,6 +70,23 @@ make mount                         # Mount CIRCUITPY USB drive
 make deploy                                    # One-time: deploy receiver
 make serial                                    # Check board IP address
 MATRIX_IP=192.168.x.x make stream app=apps/rainbow.py
+```
+
+### Garvis Voice Server
+Requires the `[server]` optional dependencies and API keys in `.env`:
+```bash
+pip install -e ".[server]"         # Install server dependencies (fastapi, uvicorn, etc.)
+# Also requires system package: ffmpeg (for garvis client audio decoding)
+
+# Required in .env (project root or server/ directory):
+# DEEPGRAM_API_KEY=...
+# ELEVENLABS_API_KEY=...
+# OPENCLAW_GATEWAY_URL=... and OPENCLAW_GATEWAY_TOKEN=...  (default LLM)
+# — OR set USE_OPENCLAW=false and ANTHROPIC_API_KEY=...    (direct Claude)
+
+python server/garvis_server.py     # Start server (ws://0.0.0.0:8000/ws/voice)
+./run                              # Then pick "g" for Garvis server submenu
+make sim app=apps/garvis.py        # Or run the client directly
 ```
 
 ## Writing a New App

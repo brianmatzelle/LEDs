@@ -16,6 +16,7 @@ APPS=(
     "Caesar|apps/caesar.py|Spinning ASCII 3D Caesar"
     "Valentine|apps/valentine.py|Pulsing heart love note"
     "Sports|apps/sports.py|Multi-team sports tracker"
+    "Garvis|apps/garvis.py|Voice assistant face + captions"
     "Chooser|apps/chooser.py|Cycle demos with board buttons"
 )
 
@@ -39,10 +40,11 @@ show_menu() {
     local i=1
     for app in "${APPS[@]}"; do
         IFS='|' read -r name file desc <<< "$app"
-        printf "  │  %d) %-10s %-23s │\n" "$i" "$name" "$desc"
+        printf "  │ %2d) %-10s %-23s │\n" "$i" "$name" "$desc"
         ((i++))
     done
     echo "  ├──────────────────────────────────────┤"
+    printf "  │  %-36s │\n" "g) Garvis Server (voice pipeline)"
     printf "  │  %-36s │\n" "s) Simulator only (no board)"
     printf "  │  %-36s │\n" "q) Quit"
     echo "  └──────────────────────────────────────┘"
@@ -82,6 +84,47 @@ while true; do
     read -rp "  Pick a demo: " choice
 
     case "$choice" in
+        g|G)
+            GARVIS_ASSISTANT="true"
+            while true; do
+                clear
+                echo ""
+                echo "  ┌──────────────────────────────────────┐"
+                printf "  │  %-36s │\n" "GARVIS VOICE SERVER"
+                echo "  ├──────────────────────────────────────┤"
+                if [[ "$GARVIS_ASSISTANT" == "true" ]]; then
+                    printf "  │  %-36s │\n" "Assistant mode: ON (wake word)"
+                else
+                    printf "  │  %-36s │\n" "Assistant mode: OFF (always respond)"
+                fi
+                echo "  ├──────────────────────────────────────┤"
+                printf "  │  %-36s │\n" "a) Toggle assistant mode"
+                printf "  │  %-36s │\n" "s) Start server"
+                printf "  │  %-36s │\n" "q) Back"
+                echo "  └──────────────────────────────────────┘"
+                echo ""
+                read -rp "  Choice: " gchoice
+                case "$gchoice" in
+                    a|A)
+                        if [[ "$GARVIS_ASSISTANT" == "true" ]]; then
+                            GARVIS_ASSISTANT="false"
+                        else
+                            GARVIS_ASSISTANT="true"
+                        fi
+                        ;;
+                    s|S)
+                        echo ""
+                        echo "  Starting Garvis Voice Server..."
+                        echo "  Press Ctrl+C to stop."
+                        echo ""
+                        ASSISTANT_MODE="$GARVIS_ASSISTANT" "$PYTHON" "$DIR/server/garvis_server.py" 2>&1
+                        break
+                        ;;
+                    q|Q) break ;;
+                    *) ;;
+                esac
+            done
+            ;;
         s|S)
             if [[ -n "$SIM_MODE" ]]; then
                 SIM_MODE=""
@@ -99,7 +142,7 @@ while true; do
             echo ""
             exit 0
             ;;
-        [1-9])
+        [1-9]|1[0-9])
             idx=$((choice - 1))
             if [[ $idx -lt ${#APPS[@]} ]]; then
                 IFS='|' read -r name file desc <<< "${APPS[$idx]}"
