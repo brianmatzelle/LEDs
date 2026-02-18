@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 VENV := .venv
 PYTHON := $(VENV)/bin/python
-CIRCUITPY := /run/media/cowboy/CIRCUITPY
+CIRCUITPY ?= $(shell findmnt -rn -S LABEL=CIRCUITPY -o TARGET 2>/dev/null)
 SERIAL_PORT := /dev/ttyACM0
 BAUD := 115200
 MATRIX_IP ?= 192.168.1.184
