@@ -40,6 +40,7 @@ Desktop (Python)                    Board (CircuitPython)
 - Run on the desktop, preview in simulator, optionally stream to board over WiFi
 - **chooser.py** is a meta-app: dynamically imports all other apps and lets you cycle through them with board buttons (port 7778) or keyboard arrows
 - Apps can use background threads for async data (e.g., `gtrain.py` polls MTA feed in a daemon thread)
+- **sports.py** is a non-standard app — it manages its own Canvas/Simulator/Sender loop (does NOT use `ledmatrix.run()`). Uses ESPN API, PIL for logo rendering, board buttons for team navigation, and a background data-fetch thread.
 - **garvis.py** is a non-standard app — it manages its own Canvas/Simulator/Sender loop (does NOT use `ledmatrix.run()`). It runs a WebSocket client in a background asyncio thread, captures mic audio, plays TTS audio, and renders a face + captions.
 
 ### Garvis Voice Pipeline (`server/` + `apps/garvis.py`)

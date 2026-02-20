@@ -23,6 +23,7 @@ BUTTON_PORT = 7778
 BTN_UP_CODE = 0x01
 BTN_DOWN_CODE = 0x02
 OVERLAY_DURATION = 2.0
+AUTO_ROTATE = 60.0
 POLL_NORMAL = 60
 POLL_LIVE = 15
 MIN_FETCH_GAP = 2.0
@@ -781,6 +782,7 @@ def main():
 
     current = 0
     overlay_until = time.monotonic() + OVERLAY_DURATION
+    last_switch = time.monotonic()
     key_up_prev = False
     key_down_prev = False
     start = time.monotonic()
@@ -817,8 +819,13 @@ def main():
             key_up_prev = keys[pygame.K_UP]
             key_down_prev = keys[pygame.K_DOWN]
 
+            if not switched and len(favorites) > 1 and now - last_switch >= AUTO_ROTATE:
+                current = (current + 1) % len(favorites)
+                switched = True
+
             if switched:
                 overlay_until = now + OVERLAY_DURATION
+                last_switch = now
 
             # --- Render current team ---
             fav = favorites[current]
