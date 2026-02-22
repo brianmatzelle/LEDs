@@ -3,6 +3,7 @@
 import io
 import json
 import math
+import random
 import socket
 import sys
 import time
@@ -755,6 +756,52 @@ def _submenu() -> list[dict]:
     return favorites
 
 
+# ---------------------------------------------------------------------------
+# Embeddable render() for use by rotator / chooser
+# ---------------------------------------------------------------------------
+
+_embed_initialized = False
+_embed_favorites = []
+_embed_current = 0
+_embed_last_switch = 0.0
+
+
+def render(canvas, t, frame):
+    """Render current team's game. Lazy-inits from saved favorites on first call."""
+    global _embed_initialized, _embed_favorites, _embed_current, _embed_last_switch
+
+    if not _embed_initialized:
+        _embed_favorites = _load_favorites()
+        if not _embed_favorites:
+            canvas.clear()
+            canvas.text(4, 28, "NO TEAMS", (255, 0, 0))
+            canvas.text(4, 36, "RUN SPORTS", (120, 120, 120))
+            return
+        for fav in _embed_favorites:
+            _get_logo(fav["league"], fav["abbr"], fav.get("logo_url"))
+        for fav in _embed_favorites:
+            key = _data_key(fav)
+            all_game_data[key] = _make_game_data(fav)
+            all_game_data[key]["our_logo"] = _logo_cache.get(f"{fav['league']}_{fav['abbr']}")
+        threading.Thread(target=_fetch_loop, args=(_embed_favorites,), daemon=True).start()
+        _embed_current = random.randrange(len(_embed_favorites))
+        _embed_last_switch = time.monotonic()
+        _embed_initialized = True
+
+    # Auto-rotate between favorite teams
+    now = time.monotonic()
+    if len(_embed_favorites) > 1 and now - _embed_last_switch >= AUTO_ROTATE:
+        _embed_current = (_embed_current + 1) % len(_embed_favorites)
+        _embed_last_switch = now
+
+    fav = _embed_favorites[_embed_current]
+    key = _data_key(fav)
+    gd = all_game_data.get(key, _make_game_data(fav))
+
+    canvas.clear()
+    _render_game(canvas, gd, t)
+
+
 def main():
     favorites = _submenu()
 
@@ -780,7 +827,7 @@ def main():
     sender = Sender()
     btn_sock = _create_button_listener()
 
-    current = 0
+    current = random.randrange(len(favorites))
     overlay_until = time.monotonic() + OVERLAY_DURATION
     last_switch = time.monotonic()
     key_up_prev = False

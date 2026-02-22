@@ -44,6 +44,7 @@ show_menu() {
         ((i++))
     done
     echo "  ├──────────────────────────────────────┤"
+    printf "  │  %-36s │\n" "r) Rotate (pick several apps)"
     printf "  │  %-36s │\n" "g) Garvis Server (voice pipeline)"
     printf "  │  %-36s │\n" "s) Simulator only (no board)"
     printf "  │  %-36s │\n" "q) Quit"
@@ -84,6 +85,103 @@ while true; do
     read -rp "  Pick a demo: " choice
 
     case "$choice" in
+        r|R)
+            # Multi-select: track which apps are selected
+            declare -A SELECTED
+            ROTATE_SAVE="$DIR/apps/.rotator_favorites.json"
+            # Load saved selections
+            if [[ -f "$ROTATE_SAVE" ]]; then
+                ri=1
+                for app in "${APPS[@]}"; do
+                    IFS='|' read -r name file desc <<< "$app"
+                    if grep -q "\"$file\"" "$ROTATE_SAVE" 2>/dev/null; then
+                        SELECTED[$ri]="1"
+                    fi
+                    ((ri++))
+                done
+            fi
+            while true; do
+                clear
+                echo ""
+                echo "  ┌──────────────────────────────────────┐"
+                printf "  │  %-36s │\n" "ROTATE - SELECT APPS"
+                echo "  ├──────────────────────────────────────┤"
+                ri=1
+                for app in "${APPS[@]}"; do
+                    IFS='|' read -r name file desc <<< "$app"
+                    if [[ "${SELECTED[$ri]}" == "1" ]]; then
+                        printf "  │ %2d) [x] %-30s │\n" "$ri" "$name"
+                    else
+                        printf "  │ %2d) [ ] %-30s │\n" "$ri" "$name"
+                    fi
+                    ((ri++))
+                done
+                echo "  ├──────────────────────────────────────┤"
+                # Count selected
+                rcount=0
+                for key in "${!SELECTED[@]}"; do
+                    [[ "${SELECTED[$key]}" == "1" ]] && ((rcount++))
+                done
+                printf "  │  %-36s │\n" "$rcount app(s) selected"
+                printf "  │  %-36s │\n" "s) Start rotating"
+                printf "  │  %-36s │\n" "q) Back"
+                echo "  └──────────────────────────────────────┘"
+                echo ""
+                read -rp "  Toggle # or command: " rchoice
+
+                case "$rchoice" in
+                    s|S)
+                        # Collect selected app files
+                        rfiles=()
+                        rjson="["
+                        rfirst=true
+                        for key in $(echo "${!SELECTED[@]}" | tr ' ' '\n' | sort -n); do
+                            if [[ "${SELECTED[$key]}" == "1" ]]; then
+                                ridx=$((key - 1))
+                                IFS='|' read -r name file desc <<< "${APPS[$ridx]}"
+                                rfiles+=("$DIR/$file")
+                                $rfirst || rjson+=","
+                                rjson+="\"$file\""
+                                rfirst=false
+                            fi
+                        done
+                        rjson+="]"
+                        if [[ ${#rfiles[@]} -eq 0 ]]; then
+                            echo "  No apps selected!"
+                            sleep 1
+                            continue
+                        fi
+                        # Save selections for next time
+                        echo "$rjson" > "$ROTATE_SAVE"
+                        echo ""
+                        echo "  Rotating ${#rfiles[@]} apps..."
+                        echo "  Close the window or press Ctrl+C to stop."
+                        echo ""
+                        if [[ "$SIM_MODE" == "sim" ]]; then
+                            "$PYTHON" "$DIR/apps/rotator.py" "${rfiles[@]}" 2>&1
+                        else
+                            MATRIX_IP="$MATRIX_IP" "$PYTHON" "$DIR/apps/rotator.py" "${rfiles[@]}" 2>&1
+                        fi
+                        break
+                        ;;
+                    q|Q) break ;;
+                    [1-9]|1[0-9])
+                        if [[ $rchoice -ge 1 && $rchoice -le ${#APPS[@]} ]]; then
+                            if [[ "${SELECTED[$rchoice]}" == "1" ]]; then
+                                SELECTED[$rchoice]="0"
+                            else
+                                SELECTED[$rchoice]="1"
+                            fi
+                        else
+                            echo "  Invalid number."
+                            sleep 1
+                        fi
+                        ;;
+                    *) ;;
+                esac
+            done
+            unset SELECTED
+            ;;
         g|G)
             GARVIS_ASSISTANT="true"
             while true; do
