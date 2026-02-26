@@ -10,7 +10,7 @@ from ledmatrix import Canvas, run
 from ledmatrix.canvas import _FONT_3X5
 
 # --- Config ---
-API_URL = "http://10.0.0.48:8080"
+API_URL = "http://192.168.1.190:8080"
 REFRESH_SEC = 30
 CYCLE_SEC = 10  # seconds per metric page
 
