@@ -6,7 +6,7 @@ SERIAL_PORT := /dev/ttyACM0
 BAUD := 115200
 MATRIX_IP ?= 192.168.1.184
 
-.PHONY: help setup sim stream deploy deploy-file serial backup mount list
+.PHONY: help setup sim stream deploy deploy-file serial backup mount list tidbyt tidbyt-stream
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -27,6 +27,12 @@ stream: ## Simulator + stream to board (make stream app=apps/circle.py)
 list: ## List available apps
 	@echo "Available apps:"
 	@ls -1 apps/*.py | sed 's/^/  /'
+
+tidbyt: ## Run Tidbyt app runner (simulator only)
+	$(PYTHON) apps/tidbyt.py
+
+tidbyt-stream: ## Run Tidbyt app runner + stream to board
+	MATRIX_IP=$(MATRIX_IP) $(PYTHON) apps/tidbyt.py
 
 deploy: ## Deploy UDP receiver to board as code.py
 	$(PYTHON) -m ledmatrix.deploy receiver
