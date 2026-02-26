@@ -15,7 +15,11 @@ APPS=(
     "Hello|apps/hello.py|Bouncing text with color cycling"
     "Caesar|apps/caesar.py|Spinning ASCII 3D Caesar"
     "Valentine|apps/valentine.py|Pulsing heart love note"
+<<<<<<< Updated upstream
     "Weather|apps/weather.py|Live Greenpoint weather + animations"
+=======
+    "Air Quality|apps/air_quality.py|Live room sensor data"
+>>>>>>> Stashed changes
     "Sports|apps/sports.py|Multi-team sports tracker"
     "Garvis|apps/garvis.py|Voice assistant face + captions"
     "Chooser|apps/chooser.py|Cycle demos with board buttons"
