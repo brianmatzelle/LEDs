@@ -77,6 +77,7 @@ matrix = rgbmatrix.RGBMatrix(
 )
 
 display = framebufferio.FramebufferDisplay(matrix, auto_refresh=False)
+display.brightness = 0.7
 
 bitmap = displayio.Bitmap(MATRIX_WIDTH, MATRIX_HEIGHT, 65536)
 pixel_shader = displayio.ColorConverter(input_colorspace=displayio.Colorspace.RGB565)
