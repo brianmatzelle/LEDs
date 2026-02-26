@@ -17,6 +17,7 @@ APPS=(
     "Valentine|apps/valentine.py|Pulsing heart love note"
     "Weather|apps/weather.py|Live Greenpoint weather + animations"
     "Air Quality|apps/air_quality.py|Live room sensor data"
+    "Clock|apps/clock.py|Analog + digital clock with date"
     "Sports|apps/sports.py|Multi-team sports tracker"
     "Garvis|apps/garvis.py|Voice assistant face + captions"
     "Chooser|apps/chooser.py|Cycle demos with board buttons"
